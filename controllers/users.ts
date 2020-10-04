@@ -1,25 +1,33 @@
 import { Client } from "https://deno.land/x/postgres/mod.ts"
 import { User } from '../types.ts'
-import { dbCredentials } from "../config.ts";
 
-// Client init
-const client = new Client(dbCredentials)
+const cfg = Deno.env.get("DB_URI")
+const client = new Client(cfg)
 
 // @desc    Get all registered users.
 // @route   GET /api/v1/user
 // @ts-ignore
-const getUsers= async ({ response }: { response: any }) => {
+const getUsers = async ({ response }: { response: any }) => {
     try {
         await client.connect()
 
         const result = await client.query("SELECT * FROM users")
+
+        const users = new Array()
+        result.rows.map(user => {
+            let obj: any = new Object()
+            result.rowDescription.columns.map((el, i) => {
+                obj[el.name] = user[i]
+            })
+            users.push(obj)
+        })
+
         response.status = 200
         response.body = {
             success: true,
-            data: result
+            data: users
         }
     } catch(e) {
-        console.log(e)
         response.status = 500
         response.body = {
             success: false,
@@ -34,10 +42,10 @@ const getUsers= async ({ response }: { response: any }) => {
 // @route   POST /api/v1/user
 // @ts-ignore
 const addUser = async ({ request, response }: { request: any, response: any }) => {
-    const body = request.body()
-    const user = body.value
+    const body = await request.body()
+    const user = await body.value
 
-    if(!request.hasBody) {
+    if (!request.hasBody) {
         response.status = 400
         response.body = {
             success: false,
@@ -53,9 +61,9 @@ const addUser = async ({ request, response }: { request: any, response: any }) =
             response.status = 201
             response.body = {
                 success: true,
-                data: result
+                data: user
             }
-        } catch(e) {
+        } catch (e) {
             response.status = 500
             response.body = {
                 success: false,
